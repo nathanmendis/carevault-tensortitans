@@ -126,126 +126,27 @@ CELERY_RESULT_BACKEND = 'django-db'   # django_celery_results
 ### 4.3 Data Models
 
 ```mermaid
-erDiagram
-    CustomUser {
-        string username
-        string email
-        string phone
-        string role "user | admin | guardian"
-        text guardian_emails "CSV of guardian emails"
-    }
-    Organisation {
-        string name
-        datetime created_at
-    }
-    OrgRegistrationToken {
-        uuid token
-        string organisation_name
-        boolean used
-        datetime expires_at "Default: 3 days"
-    }
-    Incident {
-        string incident_type "violence | hand_sos | severity | lost_child"
-        string severity "critical | high | medium | low | info"
-        datetime detected_at
-        string camera_room
-        json raw_payload
-        text description
-        text thumbnail_b64
-        boolean is_alerted
-    }
-    MissingPerson {
-        string name
-        int age
-        string gender
-        string last_seen_location
-        text description
-        image photo "upload_to missing_persons/"
-        boolean is_found
-        datetime found_at
-    }
-    Alert {
-        json recipients "List of email addresses"
-        string subject
-        text body
-        string status "pending | sent | failed"
-        datetime sent_at
-    }
-    CameraStream {
-        string name
-        string camera_type "LOCAL | REMOTE"
-        string stream_url "RTSP / HTTP URL"
-        boolean is_active
-    }
-    MLServiceConfig {
-        string base_url
-        int timeout_seconds
-        boolean violence_enabled
-        boolean hand_sos_enabled
-        boolean severity_enabled
-        boolean sos_enabled
-        boolean lost_child_enabled
-    }
+architecture-beta
+    group AWS(Cloud Provider Web Space)
+    
+    service client(internet)[React Web Client] in AWS
+    service gateway(server)[Nginx Reverse Proxy] in AWS
+    service wsgi(server)[Django GUI API] in AWS
+    service asgi(server)[Django Channels / Daphne] in AWS
+    service redis(database)[Redis Pub/Sub] in AWS
+    service ml(server)[FastAPI ML Inference] in AWS
+    service pg(database)[PostgreSQL] in AWS
 
-    CustomUser }o--|| Organisation : "belongs to (employees)"
-    Organisation ||--o{ CustomUser : "admin"
-    Organisation ||--o{ CameraStream : "camera_streams"
-    OrgRegistrationToken }o--|| CustomUser : "created_by"
-    Incident }o--o| CustomUser : "reported_by"
-    MissingPerson }o--o| CustomUser : "reported_by"
-    Alert ||--o| Incident : "alert (OneToOne)"
+    client:R --> L:gateway
+    gateway:R --> L:wsgi
+    gateway:R --> L:asgi
+    asgi:R --> L:redis
+    asgi:B --> T:ml
+    wsgi:B --> T:pg
 ```
 
-**Key relationships:**
-- `CustomUser.organisation` → FK to `Organisation` (nullable for superadmins)
-- `Organisation.admin` → FK to `CustomUser`
-- `Alert.incident` → OneToOne to `Incident` (nullable)
-- `MLServiceConfig` is a **singleton** (pk is always 1, delete is no-op)
-
-### 4.4 REST API Endpoints (`/api/`)
-
-| Method | Path | View | Auth | Description |
-|---|---|---|---|---|
-| POST | `/api/auth/register/` | `RegisterView` | Public | Create a new user |
-| GET/PATCH | `/api/auth/profile/` | `ProfileView` | JWT | Get/update current user profile |
-| GET | `/api/alerts/` | `AlertListView` | JWT | List all alerts |
-| POST | `/api/alerts/sos/` | `SOSAlertView` | Public | Send an SOS emergency alert |
-| POST | `/api/alerts/travel/` | `TravelAlertView` | Public | Send a travel emergency alert |
-| GET | `/api/incidents/` | `IncidentListView` | Public | List incidents (filterable by `?type=`, `?severity=`, `?room=`) |
-| POST | `/api/incidents/create/` | `IncidentCreateView` | Public | Create a new incident |
-| GET | `/api/incidents/<pk>/` | `IncidentDetailView` | JWT | Get incident details |
-| GET | `/api/incidents/dashboard/` | `DashboardStatsView` | JWT | Aggregate stats (by type, severity, room) |
-| POST | `/api/incidents/check-severity/` | `SeverityCheckView` | Public | Proxy to ML severity prediction |
-| GET/POST | `/api/incidents/missing-persons/` | `MissingPersonListCreateView` | Public | List/create missing persons |
-| GET | `/api/incidents/missing-persons/<pk>/` | `MissingPersonDetailView` | Public | Get missing person details |
-| POST | `/api/incidents/missing-persons/<pk>/mark-found/` | `MarkFoundView` | JWT | Mark a person as found |
-| GET | `/api/incidents/missing-persons/<pk>/photo-bytes/` | `MissingPersonPhotoView` | Public | Raw photo bytes (used by ML service) |
-| POST | `/api/incidents/hand-sos/detect/` | `HandSOSImageDetectView` | Public | Proxy to ML hand SOS detection |
-| POST | `/api/incidents/violence/detect/` | `ViolenceVideoDetectView` | Public | Proxy to ML violence detection |
-| POST | `/api/incidents/lost-child/search/` | `LostChildImageSearchView` | Public | Proxy to ML lost child search |
-| GET | `/api/health/` | `health_check` | Public | Health check |
-
-### 4.5 WebSocket Real-Time Pipeline
-
-**ASGI routing** (`carevault_core/asgi.py`):
-```
-ProtocolTypeRouter
-├── 'http'      → Django ASGI app
-└── 'websocket' → AllowedHostsOriginValidator
-                   └── AuthMiddlewareStack
-                       └── URLRouter(websocket_urlpatterns)
-```
-
-**WebSocket routes:**
-
-| Path | Consumer | Purpose |
-|---|---|---|
-| `ws/ml/stream/violence/` | `MLStreamConsumer` | Violence detection stream |
-| `ws/ml/stream/hand_sos/` | `MLStreamConsumer` | Hand SOS detection stream |
-| `ws/ml/stream/local_cam_<cam_id>/` | `MLStreamConsumer` | Per-camera local stream |
-| `ws/stream/<room_name>/` | `MLStreamConsumer` | Generic room-based stream |
-
-**`MLStreamConsumer` flow:**
+#### 3.2.2 System Diagram
+The System Diagram illustrates the physical and logical deployment of containers, highlighting how they communicate over the internal Docker network.
 
 ```mermaid
 sequenceDiagram
