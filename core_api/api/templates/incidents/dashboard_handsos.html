@@ -20,12 +20,8 @@
 <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
     <!-- Main Feed -->
     <div class="lg:col-span-3 space-y-8">
-        <div class="bg-black rounded-3xl aspect-video relative overflow-hidden group border-4 border-amber-500/20">
-            <video id="local-video" class="hidden w-full h-full object-cover" playsinline muted autoplay></video>
-            <img id="annotated-feed" class="hidden absolute inset-0 w-full h-full object-cover z-0" />
-            <canvas id="stream-canvas" class="hidden"></canvas>
-
-            <div class="absolute inset-0 flex items-center justify-center" id="connection-placeholder">
+        <div class="bg-black rounded-3xl aspect-video relative overflow-hidden group">
+            <div class="absolute inset-0 flex items-center justify-center">
                 <div class="text-center group-hover:scale-110 transition-transform duration-500">
                     <svg class="w-20 h-20 text-gray-800 mx-auto mb-4" fill="none" stroke="currentColor"
                         viewBox="0 0 24 24">
@@ -33,31 +29,15 @@
                             d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 3m0 0a10.003 10.003 0 018.139 15.441l.054.09m-8.192-15.531l-.054.09A10.003 10.003 0 0112 21">
                         </path>
                     </svg>
-                    <p class="text-gray-600 font-mono text-sm uppercase tracking-widest mb-4">Awaiting Gesture Signal...
-                    </p>
-                    <button onclick="startLocalStream()"
-                        class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded-lg font-bold transition-all shadow-xl">
-                        START LOCAL CAMERA
-                    </button>
+                    <p class="text-gray-600 font-mono text-sm uppercase tracking-widest">Awaiting Gesture Signal...</p>
                 </div>
             </div>
-            <div class="absolute top-6 left-6 flex gap-3 z-10">
+            <div class="absolute top-6 left-6 flex gap-3">
+                <span class="bg-amber-600 text-white px-3 py-1 rounded-md text-xs font-bold shadow-lg">SOS HAND
+                    RECOGNITION ACTIVE</span>
                 <span
-                    class="bg-amber-600 text-white px-3 py-1 rounded-md text-xs font-bold shadow-lg uppercase tracking-tighter">
-                    SOS RECOGNITION LIVE
-                </span>
-                <span id="fps-display"
-                    class="bg-white/10 backdrop-blur-md text-white/80 px-3 py-1 rounded-md text-xs font-mono border border-white/10 uppercase">
-                    FPS: --
-                </span>
-            </div>
-
-            <div id="sos-alert-overlay"
-                class="absolute inset-0 border-8 border-red-600 animate-pulse hidden pointer-events-none z-20">
-                <div
-                    class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red-600 text-white px-8 py-4 rounded-2xl font-black text-4xl shadow-2xl">
-                    SOS DETECTED
-                </div>
+                    class="bg-white/10 backdrop-blur-md text-white/80 px-3 py-1 rounded-md text-xs font-mono border border-white/10">SENSOR_ID:
+                    CAM_WEST_02</span>
             </div>
         </div>
 
@@ -228,64 +208,6 @@
                 btn.innerText = originalText;
             }
         });
-        const video = document.getElementById('local-video');
-        const canvas = document.getElementById('stream-canvas');
-        const placeholder = document.getElementById('connection-placeholder');
-        const fpsDisplay = document.getElementById('fps-display');
-        const sosOverlay = document.getElementById('sos-alert-overlay');
-
-        window.startLocalStream = function () {
-            navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false })
-                .then(stream => {
-                    video.srcObject = stream;
-                    video.onloadedmetadata = () => {
-                        video.play();
-                        video.classList.remove('hidden');
-                        placeholder.classList.add('hidden');
-                        initStreamWebSocket();
-                    };
-                })
-                .catch(err => alert("Camera error: " + err.message));
-        };
-
-        function initStreamWebSocket() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const ws = new WebSocket(`${protocol}//${window.location.host}/ws/ml/stream/hand_sos/`);
-
-            ws.onopen = () => {
-                const context = canvas.getContext('2d');
-                canvas.width = 640;
-                canvas.height = 480;
-
-                setInterval(() => {
-                    if (ws.readyState === WebSocket.OPEN) {
-                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        const base64 = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
-                        ws.send(JSON.stringify({ frame_b64: base64 }));
-                    }
-                }, 400); // ~2.5 FPS
-            };
-
-            ws.onmessage = (e) => {
-                const data = JSON.parse(e.data);
-                const result = data.result;
-
-                if (result.sos_detected) {
-                    sosOverlay.classList.remove('hidden');
-                } else {
-                    sosOverlay.classList.add('hidden');
-                }
-
-                if (result.annotated_image_b64) {
-                    const annotatedFeed = document.getElementById('annotated-feed');
-                    annotatedFeed.src = `data:image/jpeg;base64,${result.annotated_image_b64}`;
-                    annotatedFeed.classList.remove('hidden');
-                    video.classList.add('opacity-0'); // Hide raw video to show annotation
-                }
-
-                fpsDisplay.innerText = `FPS: ${result.fps || '2.5'}`;
-            };
-        }
     });
 </script>
 {% endblock %}

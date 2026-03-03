@@ -20,33 +20,25 @@
     <!-- Live Feed Placeholder -->
     <div
         class="lg:col-span-2 bg-black rounded-2xl aspect-video relative overflow-hidden flex items-center justify-center text-white border-4 border-red-500/20">
-        <video id="local-video" class="hidden w-full h-full object-cover" playsinline muted autoplay></video>
-        <img id="annotated-feed" class="hidden absolute inset-0 w-full h-full object-cover z-0" />
-        <canvas id="stream-canvas" class="hidden"></canvas>
-
         <div
-            class="absolute top-4 left-4 flex items-center gap-2 bg-red-600 px-3 py-1 rounded-full text-xs font-bold animate-pulse z-10">
+            class="absolute top-4 left-4 flex items-center gap-2 bg-red-600 px-3 py-1 rounded-full text-xs font-bold animate-pulse">
             <div class="w-2 h-2 bg-white rounded-full"></div>
             LIVE AI ANALYTICS
         </div>
-        <div class="text-center" id="connection-placeholder">
+        <div class="text-center">
             <svg class="w-16 h-16 text-gray-700 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z">
                 </path>
             </svg>
-            <p class="text-gray-500 italic mb-4">Waiting for camera stream connection...</p>
-            <button onclick="startLocalStream()"
-                class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold transition-all shadow-xl">
-                START LOCAL CAMERA
-            </button>
+            <p class="text-gray-500 italic">Waiting for camera stream connection...</p>
         </div>
         <!-- Simulated AI Overlays -->
         <div
-            class="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md p-4 rounded-xl border border-white/10 text-xs font-mono space-y-1 z-10">
-            <p class="text-green-400" id="fps-display">FPS: --</p>
+            class="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md p-4 rounded-xl border border-white/10 text-xs font-mono space-y-1">
+            <p class="text-green-400">FPS: 30.2</p>
             <p class="text-green-400">MODEL: YOLOV8-VIOLENCE-V2</p>
-            <div id="alert-status" class="hidden text-red-500 font-black animate-pulse">VIOLENCE DETECTED</div>
+            <p class="text-green-400">LATENCY: 42ms</p>
         </div>
     </div>
 
@@ -188,66 +180,6 @@
                 btn.innerHTML = originalHtml;
             }
         });
-        const video = document.getElementById('local-video');
-        const canvas = document.getElementById('stream-canvas');
-        const placeholder = document.getElementById('connection-placeholder');
-        const fpsDisplay = document.getElementById('fps-display');
-        const alertStatus = document.getElementById('alert-status');
-
-        window.startLocalStream = function () {
-            navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false })
-                .then(stream => {
-                    video.srcObject = stream;
-                    video.onloadedmetadata = () => {
-                        video.play();
-                        video.classList.remove('hidden');
-                        placeholder.classList.add('hidden');
-                        initStreamWebSocket();
-                    };
-                })
-                .catch(err => alert("Camera error: " + err.message));
-        };
-
-        function initStreamWebSocket() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const ws = new WebSocket(`${protocol}//${window.location.host}/ws/ml/stream/violence/`);
-
-            ws.onopen = () => {
-                const context = canvas.getContext('2d');
-                canvas.width = 640;
-                canvas.height = 480;
-
-                setInterval(() => {
-                    if (ws.readyState === WebSocket.OPEN) {
-                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        const base64 = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
-                        ws.send(JSON.stringify({ frame_b64: base64 }));
-                    }
-                }, 400); // ~2.5 FPS
-            };
-
-            ws.onmessage = (e) => {
-                const data = JSON.parse(e.data);
-                const result = data.result;
-
-                if (result.suspicious_detected) {
-                    alertStatus.classList.remove('hidden');
-                    document.querySelector('.lg\\:col-span-2').classList.add('border-red-600', 'animate-pulse');
-                } else {
-                    alertStatus.classList.add('hidden');
-                    document.querySelector('.lg\\:col-span-2').classList.remove('border-red-600', 'animate-pulse');
-                }
-
-                if (result.thumbnail_b64) {
-                    const annotatedFeed = document.getElementById('annotated-feed');
-                    annotatedFeed.src = `data:image/jpeg;base64,${result.thumbnail_b64}`;
-                    annotatedFeed.classList.remove('hidden');
-                    video.classList.add('opacity-0'); // Hide raw video to show annotation
-                }
-
-                fpsDisplay.innerText = `FPS: ${result.fps ? result.fps.toFixed(1) : '2.5'}`;
-            };
-        }
     });
 </script>
 {% endblock %}
