@@ -49,14 +49,11 @@ INSTALLED_APPS = [
     
     # Local apps
     'users',
-    'api',
+    'incidents',
+    'alerts',
+    'ws_consumers',
     'django_celery_results',
-    'web',
-    'tailwind',
-    'theme',
 ]
-
-TAILWIND_APP_NAME = 'theme'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -142,10 +139,6 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
-
-# Media files (uploaded images — MissingPerson photos etc.)
-MEDIA_URL  = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (

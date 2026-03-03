@@ -211,11 +211,8 @@ async def detect_violence_frame(
             if conf[index] < 0.55:
                 continue
             x1, y1, x2, y2 = box.tolist()
-            # Alternate x and y to match model's expected order: x0, y0, x1, y1...
-            data = {}
-            for j in range(len(keypoints[index])):
-                data[f"x{j}"] = keypoints[index][j][0]
-                data[f"y{j}"] = keypoints[index][j][1]
+            data = {f"x{j}": keypoints[index][j][0] for j in range(len(keypoints[index]))}
+            data.update({f"y{j}": keypoints[index][j][1] for j in range(len(keypoints[index]))})
             df = pd.DataFrame(data, index=[0])
             dmatrix = xgb.DMatrix(df)
             sus = _xgb_model.predict(dmatrix)
