@@ -1,0 +1,30 @@
+{% load tailwind_tags %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CareVault{% endblock %}</title>
+    {% tailwind_css %}
+</head>
+
+<body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    {% include 'web/includes/navbar.html' %}
+
+    <!-- Messages -->
+    {% include 'web/includes/messages.html' %}
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    {% include 'web/includes/footer.html' %}
+
+</body>
+
+</html>

@@ -1,0 +1,88 @@
+{% extends 'web/base.html' %}
+{% load static %}
+
+{% block title %}Incident Analysis - CareVault{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900">Incident Analysis</h1>
+    <p class="text-gray-600 mt-2">Comprehensive data overview and trend analysis of campus safety metrics.</p>
+</div>
+
+<!-- Stats Grid -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Total Incidents</p>
+        <p class="text-3xl font-black text-indigo-600 mt-1">{{ total_incidents }}</p>
+    </div>
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-red-500">
+        <p class="text-sm font-medium text-gray-400 uppercase tracking-wider">Violence</p>
+        <p class="text-3xl font-black text-gray-900 mt-1">{{ violence_count }}</p>
+    </div>
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-amber-500">
+        <p class="text-sm font-medium text-gray-400 uppercase tracking-wider">Hand SOS</p>
+        <p class="text-3xl font-black text-gray-900 mt-1">{{ sos_count }}</p>
+    </div>
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-indigo-500">
+        <p class="text-sm font-medium text-gray-400 uppercase tracking-wider">Lost Child</p>
+        <p class="text-3xl font-black text-gray-900 mt-1">{{ lost_child_count }}</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <!-- Real Trend Chart -->
+    <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 flex flex-col">
+        <div class="flex justify-between items-start mb-6">
+            <h3 class="text-xl font-bold text-gray-900">7-Day Incident Trends</h3>
+            <div class="flex flex-col gap-2 text-xs">
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded bg-red-500"></div><span
+                        class="text-gray-600 font-medium">Med/High/Critical</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded bg-gray-200"></div><span
+                        class="text-gray-600 font-medium">Low/Info</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-grow flex items-end justify-between gap-4 px-2 pb-2 border-b border-gray-100"
+            id="chart-container" style="min-height: 200px;">
+            <!-- Rendered via JS -->
+        </div>
+        <div class="flex justify-between mt-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2"
+            id="chart-labels">
+            <!-- Rendered via JS -->
+        </div>
+
+        <script>
+            // Provide context data to the external JS script
+            window.CHART_DATA = {{ chart_data_json | safe }};
+        </script>
+        <script src="{% static 'web/js/analysis_chart.js' %}"></script>
+    </div>
+
+    <!-- Recent Logs -->
+    <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+        <h3 class="text-xl font-bold text-gray-900 mb-6">Recent Records</h3>
+        <div class="space-y-4">
+            {% for incident in recent_incidents %}
+            <div
+                class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                <div>
+                    <p class="text-sm font-bold text-gray-900">{{ incident.get_incident_type_display }}</p>
+                    <p class="text-[10px] text-gray-500">{{ incident.detected_at|date:"M d, H:i" }} •
+                        {{incident.camera_room }}</p>
+                </div>
+                <span
+                    class="text-xs font-mono font-bold uppercase {% if incident.severity == 'critical' %}text-red-600{% else %}text-gray-400{% endif %}">
+                    {{ incident.severity }}
+                </span>
+            </div>
+            {% empty %}
+            <p class="text-center py-12 text-gray-400 italic">No data to display.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
